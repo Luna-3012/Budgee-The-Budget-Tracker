@@ -86,7 +86,7 @@ export const CategorySelector = ({ selectedCategory, onSelectCategory, onCustomC
               "h-16 flex-col gap-1 border-2 transition-all duration-200",
               selectedCategory === category.name
                 ? "border-primary bg-primary/10 scale-105 shadow-md"
-                : "border-border hover:border-primary/50 hover:bg-gradient-card"
+                : "border-border hover:bg-[rgba(38,155,173,0.15)] hover:border-[rgba(38,155,173,0.5)] hover:text-[#269bad] hover:-translate-y-0.5"
             )}
             onClick={() => handleCategoryClick(category.name, category.icon)}
           >
