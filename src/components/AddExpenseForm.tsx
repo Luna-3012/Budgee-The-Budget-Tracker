@@ -633,8 +633,6 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
             suggestedIcon = "💰";
           }
 
-          // FIXED: Pre-select the suggested category but don't auto-submit
-          // User can still change it before clicking "Add Expense"
           if (suggestedCategory && suggestedIcon) {
             setCategory(suggestedCategory);
             setCategoryIcon(suggestedIcon);
@@ -651,7 +649,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
   
           toast({
             title: "Receipt Processed",
-            description: `Amount ₹${extractedAmount} extracted (${Math.round(confidence)}% confidence). ${suggestedCategory ? `Category pre-selected as "${suggestedCategory}". ` : ''}Review details and click "Add Expense" to save.`,
+            description: `Amount ₹${extractedAmount} extracted`,
             duration: 6000,
           });
         } else {
