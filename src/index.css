@@ -60,15 +60,15 @@
     }
   }
   :root {
-    /* Monefy color palette */
     --primary: 210 89% 35%; /* #0766AD - Deep blue */
     --primary-foreground: 0 0% 100%;
     
     --secondary: 182 59% 43%; /* #29ADB2 - Teal */
     --secondary-foreground: 0 0% 100%;
     
-    --accent: 79 59% 75%; /* #C5E898 - Light green */
-    --accent-foreground: 210 89% 20%;
+    --accent: rgba(38, 155, 173, 0.15); 
+    --accent-foreground: 193 100% 36%; /* #29ADB2 - Teal (with 15% opacity)*/
+
     
     --background: 0 0% 95%; /* #F3F3F3 - Light gray */
     --foreground: 210 20% 15%;
