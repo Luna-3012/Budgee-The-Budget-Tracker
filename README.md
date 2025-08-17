@@ -72,8 +72,8 @@ HF_API_URL=https://api-inference.huggingface.co/models/FinGPT/fingpt-mt_llama3-8
     
 # Pinecone Configuration
 PINECONE_API_KEY=your-pinecone-api-key
-PINECONE_CLOUD=aws
-PINECONE_REGION=us-east-1
+PINECONE_CLOUD=your-pinecone-cloud
+PINECONE_REGION=your-pinecone-region
 INDEX_NAME=budget-bot
 NAMESPACE=user_expenses
 
