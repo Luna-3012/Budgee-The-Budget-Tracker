@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,6 @@ import Tesseract from 'tesseract.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faReceipt } from '@fortawesome/free-solid-svg-icons';
 import { findBestCategoryMatch } from "@/utils/categoryMapper";
-
 
 interface AddExpenseFormProps {
   onAddExpense: (expense: {
@@ -28,10 +27,34 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
   const [categoryIcon, setCategoryIcon] = useState("");
   const [description, setDescription] = useState("");
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userHasInteracted, setUserHasInteracted] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Mark that user has interacted with the form
+  const markUserInteraction = () => {
+    if (!userHasInteracted) {
+      setUserHasInteracted(true);
+      console.log('User interaction detected');
+    }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    console.log('Form submit blocked - use button instead');
+    return false;
+  };
+
+  // This is the ONLY way to submit the expense
+  const handleManualAddExpense = async () => {
+    console.log('Manual Add Expense clicked');
+    
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring');
+      return;
+    }
     
     if (!amount || !category) {
       toast({
@@ -72,32 +95,52 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
       return;
     }
 
-    console.log('Submitting expense:', { amount: numAmount, category, description, icon: categoryIcon }); // Debug log
+    setIsSubmitting(true);
+    console.log('Submitting expense:', { amount: numAmount, category, description, icon: categoryIcon }); 
     
-    await onAddExpense({
-      amount: numAmount,
-      category,
-      description,
-      icon: categoryIcon,
-    });
+    try {
+      await onAddExpense({
+        amount: numAmount,
+        category,
+        description,
+        icon: categoryIcon,
+      });
 
-    // Reset form
-    setAmount("");
-    setCategory("");
-    setCategoryIcon("");
-    setDescription("");
-    
-    console.log('Form reset completed'); 
+      // Reset form only after successful submission
+      setAmount("");
+      setCategory("");
+      setCategoryIcon("");
+      setDescription("");
+      setUserHasInteracted(false);
+      
+      toast({
+        title: "Expense Added",
+        description: "Your expense has been successfully added",
+      });
+      
+      console.log('Form reset completed');
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add expense. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSelectCategory = (cat: string, icon: string) => {
     console.log('Category selected:', cat, 'Icon:', icon);
     setCategory(cat);
     setCategoryIcon(icon);
+    markUserInteraction();
   };
 
   const handleCustomCategory = (customCategoryName: string) => {
     console.log('Custom category created:', customCategoryName); 
+    markUserInteraction();
     
     // Validate custom category name
     if (customCategoryName.trim().length < 2) {
@@ -118,25 +161,49 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
       return;
     }
     
-    const match = findBestCategoryMatch(customCategoryName);
+    const trimmedName = customCategoryName.trim();
     
-    if (match.isCustom) {
-      setCategory(customCategoryName.trim());
-      setCategoryIcon(match.icon);
+    // Get suggestion from category matcher
+    const match = findBestCategoryMatch(trimmedName);
+    
+    // If it's not a perfect match to an existing category, offer a choice
+    if (match.isCustom || match.category.toLowerCase() !== trimmedName.toLowerCase()) {
+      setCategory(trimmedName);
+      setCategoryIcon("💰"); 
       
-      toast({
-        title: "Custom Category Created",
-        description: `Category "${customCategoryName.trim()}" has been created`,
-      });
+      // Show suggestion but don't force it
+      if (!match.isCustom) {
+        toast({
+          title: `Custom Category "${trimmedName}" Created`,
+          description: `💡 Tip: This could also be categorized as "${match.category}" if you prefer.`,
+          duration: 6000,
+        });
+      } else {
+        toast({
+          title: "Custom Category Created",
+          description: `Category "${trimmedName}" has been created`,
+        });
+      }
     } else {
+      // Exact match to existing category - use the existing one
       setCategory(match.category);
       setCategoryIcon(match.icon);
       
       toast({
-        title: "Category Auto-Selected",
-        description: `"${customCategoryName}" has been categorized as "${match.category}"`,
+        title: "Existing Category Selected",
+        description: `"${trimmedName}" matched existing category "${match.category}"`,
       });
     }
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAmount(e.target.value);
+    markUserInteraction();
+  };
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setDescription(e.target.value);
+    markUserInteraction();
   };
 
   const handleReceiptUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,14 +221,14 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
       const result = await Tesseract.recognize(file, "eng");
       const extractedText = result.data.text;
   
-      console.log("Extracted Text:", extractedText); 
+      console.log("Extracted Text:", extractedText);
   
       // Split text into lines for better parsing
       const lines = extractedText
         .split("\n")
         .map((line) => line.trim())
         .filter((line) => line);
-      console.log("Lines:", lines); 
+      console.log("Lines:", lines);
   
       // Clean and normalize text for better matching
       const normalizedText = extractedText
@@ -191,7 +258,6 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         /amount\s*[:\s]*0*([1-9]\d*(?:\.\d{2})?)\s*$/i,
         /([1-9]\d*(?:\.\d{2})?)\s*bill\s*amount/i,
         /([1-9]\d*(?:\.\d{2})?)\s*total\s*amount/i,
-        // Additional patterns for fuel receipts and Indian formats
         /total\s*[:\s]*0*([1-9]\d{3,}(?:\.\d{2})?)/i,
         /amount\s*[:\s]*0*([1-9]\d{3,}(?:\.\d{2})?)/i,
       ];
@@ -417,12 +483,14 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         }
       }
   
+      // Populate form fields if amount extracted 
       if (extractedAmount) {
         setAmount(extractedAmount);
   
-        // Enhanced category detection for fuel stations
         if (!category) {
           const textLower = extractedText.toLowerCase();
+          let suggestedCategory = null;
+          let suggestedIcon = null;
   
           if (
             textLower.includes("indianoil") ||
@@ -436,10 +504,66 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
             textLower.includes("hp petro") ||
             textLower.includes("iocl") ||
             textLower.includes("bpcl") ||
-            textLower.includes("hpcl")
+            textLower.includes("hpcl") ||
+            textLower.includes("reliance petroleum") ||
+            textLower.includes("essar oil") ||
+            textLower.includes("shell") ||
+            textLower.includes("total oil") ||
+            textLower.includes("nayara energy") ||
+            
+            // Automotive and vehicle related
+            textLower.includes("tire") ||
+            textLower.includes("tyre") ||
+            textLower.includes("wheel") ||
+            textLower.includes("automotive") ||
+            textLower.includes("garage") ||
+            textLower.includes("service station") ||
+            textLower.includes("mechanic") ||
+            textLower.includes("car wash") ||
+            textLower.includes("vehicle") ||
+            textLower.includes("auto") ||
+            textLower.includes("motor") ||
+            textLower.includes("engine oil") ||
+            textLower.includes("lubricant") ||
+            textLower.includes("brake") ||
+            textLower.includes("battery") ||
+            textLower.includes("servicing") ||
+            textLower.includes("maintenance") ||
+            
+            // Transport services
+            textLower.includes("taxi") ||
+            textLower.includes("uber") ||
+            textLower.includes("ola") ||
+            textLower.includes("cab") ||
+            textLower.includes("bus") ||
+            textLower.includes("metro") ||
+            textLower.includes("railway") ||
+            textLower.includes("train") ||
+            textLower.includes("airport") ||
+            textLower.includes("parking") ||
+            textLower.includes("toll") ||
+            textLower.includes("transport") ||
+            
+            // Fuel related terms that might appear
+            textLower.includes("pump") ||
+            textLower.includes("nozzle") ||
+            textLower.includes("litre") ||
+            textLower.includes("liter") ||
+            textLower.includes("octane") ||
+            textLower.includes("premium") ||
+            textLower.includes("unleaded") ||
+            textLower.includes("cng") ||
+            textLower.includes("lpg") ||
+            
+            // Common fuel station indicators
+            (textLower.includes("rate") && textLower.includes("volume")) ||
+            (textLower.includes("density") && textLower.includes("product")) ||
+            textLower.includes("preset type") ||
+            textLower.includes("xtra prem") ||
+            (textLower.includes("speed") && textLower.includes("97")) 
           ) {
-            setCategory("Transport");
-            setCategoryIcon("⛽");
+            suggestedCategory = "Transport";
+            suggestedIcon = "⛽";
           } else if (
             textLower.includes("hospital") ||
             textLower.includes("medical") ||
@@ -450,8 +574,8 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
             textLower.includes("inpatient") ||
             textLower.includes("consultation")
           ) {
-            setCategory("Health");
-            setCategoryIcon("⚕️");
+            suggestedCategory = "Health";
+            suggestedIcon = "⚕️";
           } else if (
             textLower.includes("delicacies") ||
             textLower.includes("restaurant") ||
@@ -462,40 +586,46 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
             textLower.includes("toast") ||
             textLower.includes("pure veg")
           ) {
-            setCategory("Food");
-            setCategoryIcon("🍕");
+            suggestedCategory = "Food";
+            suggestedIcon = "🍕";
           } else if (
             textLower.includes("grocery") ||
             textLower.includes("supermarket") ||
             textLower.includes("mart")
           ) {
-            setCategory("Shopping");
-            setCategoryIcon("🛍️");
+            suggestedCategory = "Shopping";
+            suggestedIcon = "🛍️";
           } else if (
             textLower.includes("movie") ||
             textLower.includes("cinema") ||
             textLower.includes("entertainment")
           ) {
-            setCategory("Entertainment");
-            setCategoryIcon("🎬");
+            suggestedCategory = "Entertainment";
+            suggestedIcon = "🎬";
           } else if (
             textLower.includes("school") ||
             textLower.includes("college") ||
             textLower.includes("university")
           ) {
-            setCategory("Education");
-            setCategoryIcon("📚");
+            suggestedCategory = "Education";
+            suggestedIcon = "📚";
           } else if (
             textLower.includes("electric") ||
             textLower.includes("water") ||
             textLower.includes("utility") ||
             textLower.includes("bill")
           ) {
-            setCategory("Bills");
-            setCategoryIcon("📄");
+            suggestedCategory = "Bills";
+            suggestedIcon = "📄";
           } else {
-            setCategory("Other");
-            setCategoryIcon("💰");
+            suggestedCategory = "Other";
+            suggestedIcon = "💰";
+          }
+
+          // Set the suggested category
+          if (suggestedCategory) {
+            setCategory(suggestedCategory);
+            setCategoryIcon(suggestedIcon);
           }
         }
   
@@ -507,7 +637,8 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
   
         toast({
           title: "Receipt Processed",
-          description: `Amount ₹${extractedAmount} extracted`,
+          description: `Amount ₹${extractedAmount} extracted (${Math.round(confidence)}% confidence). Review details and click "Add Expense" to save.`,
+          duration: 5000,
         });
       } else {
         console.log("No amount found in any strategy");
@@ -530,7 +661,6 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
       setIsProcessingReceipt(false);
     }
   };
-  
 
   return (
     <Card className="p-6 bg-gradient-card shadow-card">
@@ -539,7 +669,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         Add New Expense
       </h2>
       
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleFormSubmit} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="amount" className="text-sm font-medium text-foreground">
             Amount (₹)
@@ -549,19 +679,21 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
             type="number"
             step="0.01"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={handleAmountChange}
             placeholder="0.00"
             className="text-lg font-semibold"
           />
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
           <Label className="text-sm font-medium text-foreground">Category</Label>
-          <CategorySelector
-            selectedCategory={category}
-            onSelectCategory={handleSelectCategory}
-            onCustomCategory={handleCustomCategory}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <CategorySelector
+              selectedCategory={category}
+              onSelectCategory={handleSelectCategory}
+              onCustomCategory={handleCustomCategory}
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -571,7 +703,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
           <Textarea
             id="description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={handleDescriptionChange}
             placeholder="What did you spend on?"
             className="resize-none"
             rows={3}
@@ -580,11 +712,19 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
 
         <div className="flex gap-3">
           <Button
-            type="submit"
+            type="button"
+            onClick={handleManualAddExpense}
             className="flex-1 bg-gradient-primary hover:opacity-90 transition-opacity"
-            disabled={!amount || !category}
+            disabled={!amount || !category || isSubmitting}
           >
-            Add Expense
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Adding...
+              </>
+            ) : (
+              "Add Expense"
+            )}
           </Button>
           
           <div className="relative">
@@ -593,6 +733,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
               variant="outline"
               className="px-4 border-secondary hover:bg-secondary/10"
               disabled={isProcessingReceipt}
+              title="Upload Receipt"
             >
               {isProcessingReceipt ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -610,6 +751,15 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
           </div>
         </div>
       </form>
+
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
+          User Interaction: {userHasInteracted.toString()} | 
+          Is Submitting: {isSubmitting.toString()} | 
+          Category: {category} | 
+          Amount: {amount}
+        </div>
+      )}
     </Card>
   );
 };
