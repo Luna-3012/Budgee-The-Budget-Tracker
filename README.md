@@ -12,9 +12,9 @@ Watch Budgee in action: [Demo Video](https://drive.google.com/)
 
 ## ⚙️ Features  
 
-- **AI-Powered Financial Assistant** — FinGPT provides personalized insights into your spending  
-- **Smart Expense Tracker** — Add, edit, and categorize expenses effortlessly  
-- **Natural Language Queries** — Ask in plain English: “How much did I spend on food last week?” 
+- **AI-Powered Financial Assistant** — Provides personalized insights into your spending and answers queries like “How much did I spend on food last week?”
+- **Smart Expense Tracker** — Add, edit, and categorize expenses effortlessly
+- **OCR Receipt Detection** — Extract expense data from scanned receipts to reduce manual entry  
 - **Real-time Analytics Dashboard** — Visualize income vs. expenses with charts  
 - **Secure User Accounts** — Authentication and storage powered by Supabase
 
@@ -28,7 +28,8 @@ Watch Budgee in action: [Demo Video](https://drive.google.com/)
 - **Pinecone** — Vector search for advanced RAG queries  
 - **Uvicorn** — ASGI server for high-performance backend
 - **React + Vite** — Modern frontend with clean UI  
-- **Tailwind CSS** — Responsive design system    
+- **Tailwind CSS** — Responsive design system
+- **Tesseract OCR** — Extract expenses from receipts
 
 ---
 
