@@ -4,7 +4,7 @@ A smart application that helps you **track expenses, analyze spending patterns, 
 
 ## 🎥 Demo  
 
-Watch Budgee in action: [Demo Video]([https://drive.google.com/](https://drive.google.com/file/d/1aeL3Hi8o7O2fESvu9v_GmKL6PmbHb_x_/view?usp=sharing))  
+Watch Budgee in action: [Demo Video](https://drive.google.com/file/d/1aeL3Hi8o7O2fESvu9v_GmKL6PmbHb_x_/view?usp=sharing)
 
 > 💡 Perfect for individuals and teams who want effortless financial tracking and AI-powered financial insights!  
 
