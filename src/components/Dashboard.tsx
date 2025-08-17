@@ -112,7 +112,7 @@ export const Dashboard = ({ expenses, onDeleteExpense }: DashboardProps) => {
                 "capitalize transition-colors duration-200",
                 timeFilter === period 
                   ? "bg-primary text-primary-foreground" 
-                  : "hover:bg-[#269bad] hover:text-primary-foreground hover:border-[#269bad]"
+                  : "hover:bg-[rgba(38,155,173,0.15)] hover:text-[#269bad] hover:border-[#269bad]"
               )}
             >
               {period}
