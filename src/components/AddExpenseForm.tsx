@@ -39,10 +39,12 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
     }
   };
 
+  // COMPLETELY REMOVE form submission - only manual button click should work
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     console.log('Form submit blocked - use button instead');
+    // Do nothing - only manual button click should trigger submission
     return false;
   };
 
@@ -136,10 +138,11 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
     setCategory(cat);
     setCategoryIcon(icon);
     markUserInteraction();
+    // DO NOT AUTO-SUBMIT - user must click Add Expense button
   };
 
   const handleCustomCategory = (customCategoryName: string) => {
-    console.log('Custom category created:', customCategoryName); 
+    console.log('Custom category requested:', customCategoryName); 
     markUserInteraction();
     
     // Validate custom category name
@@ -163,37 +166,41 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
     
     const trimmedName = customCategoryName.trim();
     
-    // Get suggestion from category matcher
-    const match = findBestCategoryMatch(trimmedName);
+    // COMPLETELY BYPASS findBestCategoryMatch - Always create custom category as requested
+    console.log(`Creating custom category: "${trimmedName}"`);
     
-    // If it's not a perfect match to an existing category, offer a choice
-    if (match.isCustom || match.category.toLowerCase() !== trimmedName.toLowerCase()) {
-      setCategory(trimmedName);
-      setCategoryIcon("💰"); 
-      
-      // Show suggestion but don't force it
-      if (!match.isCustom) {
-        toast({
-          title: `Custom Category "${trimmedName}" Created`,
-          description: `💡 Tip: This could also be categorized as "${match.category}" if you prefer.`,
-          duration: 6000,
-        });
-      } else {
-        toast({
-          title: "Custom Category Created",
-          description: `Category "${trimmedName}" has been created`,
-        });
+    // Set the custom category exactly as the user typed it
+    setCategory(trimmedName);
+    setCategoryIcon("💰"); // Default icon for custom categories
+    
+    // Show confirmation message
+    toast({
+      title: "Custom Category Created",
+      description: `Category "${trimmedName}" has been created successfully!`,
+      duration: 4000,
+    });
+    
+    console.log(`✅ Custom category "${trimmedName}" created with 💰 icon`);
+    
+    // Optional: Show suggestion as a separate helpful hint (not forcing anything)
+    try {
+      const suggestion = findBestCategoryMatch(trimmedName);
+      if (suggestion && !suggestion.isCustom) {
+        // Show suggestion in a separate toast after a delay
+        setTimeout(() => {
+          toast({
+            title: "💡 Helpful Suggestion",
+            description: `Your "${trimmedName}" category could also fit under existing "${suggestion.category}" category. But feel free to keep your custom one!`,
+            duration: 5000,
+          });
+        }, 2000);
       }
-    } else {
-      // Exact match to existing category - use the existing one
-      setCategory(match.category);
-      setCategoryIcon(match.icon);
-      
-      toast({
-        title: "Existing Category Selected",
-        description: `"${trimmedName}" matched existing category "${match.category}"`,
-      });
+    } catch (error) {
+      // Ignore suggestion errors - custom category creation should never fail
+      console.log('Suggestion failed, but custom category created successfully');
     }
+    
+    // DO NOT AUTO-SUBMIT - user must click Add Expense button
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -258,6 +265,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         /amount\s*[:\s]*0*([1-9]\d*(?:\.\d{2})?)\s*$/i,
         /([1-9]\d*(?:\.\d{2})?)\s*bill\s*amount/i,
         /([1-9]\d*(?:\.\d{2})?)\s*total\s*amount/i,
+        // Additional patterns for fuel receipts and Indian formats
         /total\s*[:\s]*0*([1-9]\d{3,}(?:\.\d{2})?)/i,
         /amount\s*[:\s]*0*([1-9]\d{3,}(?:\.\d{2})?)/i,
       ];
@@ -483,16 +491,19 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         }
       }
   
-      // Populate form fields if amount extracted 
+      // Only populate form fields if amount extracted - NO AUTOMATIC EXPENSE CREATION
       if (extractedAmount) {
         setAmount(extractedAmount);
+        // DO NOT mark as user interaction - receipt processing is automatic
   
+        // CHANGED: Only suggest category as a helpful hint, don't auto-set anything
         if (!category) {
           const textLower = extractedText.toLowerCase();
           let suggestedCategory = null;
           let suggestedIcon = null;
   
           if (
+            // Fuel companies and stations
             textLower.includes("indianoil") ||
             textLower.includes("indian oil") ||
             textLower.includes("fuel") ||
@@ -559,8 +570,8 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
             (textLower.includes("rate") && textLower.includes("volume")) ||
             (textLower.includes("density") && textLower.includes("product")) ||
             textLower.includes("preset type") ||
-            textLower.includes("xtra prem") ||
-            (textLower.includes("speed") && textLower.includes("97")) 
+            textLower.includes("xtra prem") || // Extra Premium fuel
+            (textLower.includes("speed") && textLower.includes("97")) // High octane fuel
           ) {
             suggestedCategory = "Transport";
             suggestedIcon = "⛽";
@@ -622,24 +633,28 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
             suggestedIcon = "💰";
           }
 
-          // Set the suggested category
-          if (suggestedCategory) {
-            setCategory(suggestedCategory);
-            setCategoryIcon(suggestedIcon);
-          }
+          // CHANGED: Show suggestion in toast, but don't auto-set the category
+          // This way user has full control over their category selection
+          console.log("Final result:", {
+            extractedAmount,
+            confidence,
+            matchDetails,
+            suggestedCategory
+          });
+  
+          toast({
+            title: "Receipt Processed",
+            description: `Amount ₹${extractedAmount} extracted (${Math.round(confidence)}% confidence). ${suggestedCategory ? `💡 Suggested category: ${suggestedCategory}. ` : ''}Please select a category and click "Add Expense" to save.`,
+            duration: 7000,
+          });
+        } else {
+          // User already has a category selected
+          toast({
+            title: "Receipt Processed",
+            description: `Amount ₹${extractedAmount} extracted (${Math.round(confidence)}% confidence). Review details and click "Add Expense" to save.`,
+            duration: 5000,
+          });
         }
-  
-        console.log("Final result:", {
-          extractedAmount,
-          confidence,
-          matchDetails,
-        });
-  
-        toast({
-          title: "Receipt Processed",
-          description: `Amount ₹${extractedAmount} extracted (${Math.round(confidence)}% confidence). Review details and click "Add Expense" to save.`,
-          duration: 5000,
-        });
       } else {
         console.log("No amount found in any strategy");
         console.log("All lines:", lines);
@@ -669,6 +684,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         Add New Expense
       </h2>
       
+      {/* Form that CANNOT submit automatically */}
       <form onSubmit={handleFormSubmit} className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="amount" className="text-sm font-medium text-foreground">
@@ -711,6 +727,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         </div>
 
         <div className="flex gap-3">
+          {/* ONLY button that can add expense - NOT a submit button */}
           <Button
             type="button"
             onClick={handleManualAddExpense}
@@ -752,14 +769,6 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         </div>
       </form>
 
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
-          User Interaction: {userHasInteracted.toString()} | 
-          Is Submitting: {isSubmitting.toString()} | 
-          Category: {category} | 
-          Amount: {amount}
-        </div>
-      )}
     </Card>
   );
 };
