@@ -658,7 +658,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
           // User already has a category selected
           toast({
             title: "Receipt Processed",
-            description: `Amount ₹${extractedAmount} extracted (${Math.round(confidence)}% confidence). Review details and click "Add Expense" to save.`,
+            description: `Amount ₹${extractedAmount} extracted`,
             duration: 5000,
           });
         }
@@ -734,7 +734,6 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         </div>
 
         <div className="flex gap-3">
-          {/* ONLY button that can add expense - NOT a submit button */}
           <Button
             type="button"
             onClick={handleManualAddExpense}
