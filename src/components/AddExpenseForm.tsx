@@ -154,14 +154,14 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
       const result = await Tesseract.recognize(file, "eng");
       const extractedText = result.data.text;
   
-      console.log("Extracted Text:", extractedText); // For debugging
+      console.log("Extracted Text:", extractedText); 
   
       // Split text into lines for better parsing
       const lines = extractedText
         .split("\n")
         .map((line) => line.trim())
         .filter((line) => line);
-      console.log("Lines:", lines); // Show individual lines
+      console.log("Lines:", lines); 
   
       // Clean and normalize text for better matching
       const normalizedText = extractedText
@@ -179,16 +179,21 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
       // Strategy 1: Look for explicit bill/total amount labels (HIGHEST CONFIDENCE)
       console.log("=== Strategy 1: Looking for explicit labels ===");
       const highConfidencePatterns = [
-        /(?:^|\s)total\s*:\s*(\d+(?:\.\d{2})?)\s*$/im,
+        // Enhanced patterns for various total formats including padded zeros
+        /(?:^|\s)total\s*[:]\s*0*(\d+(?:\.\d{2})?)\s*$/im,
         /(?:^|\s)(\d+(?:\.\d{2})?)\s*total\s*$/im,
-        /bill\s*amount\s*[:\s]*([\d,]+\.?\d*)/i,
-        /total\s*amount\s*[:\s]*([\d,]+\.?\d*)/i,
-        /grand\s*total\s*[:\s]*([\d,]+\.?\d*)/i,
-        /net\s*amount\s*[:\s]*([\d,]+\.?\d*)/i,
-        /final\s*amount\s*[:\s]*([\d,]+\.?\d*)/i,
-        /amount\s*[:\s]*([\d,]+\.?\d*)\s*$/i,
-        /([\d,]+\.?\d*)\s*bill\s*amount/i,
-        /([\d,]+\.?\d*)\s*total\s*amount/i,
+        /total\s*[:]\s*0*([1-9]\d*(?:\.\d{2})?)/im,
+        /bill\s*amount\s*[:\s]*0*([1-9]\d*(?:\.\d{2})?)/i,
+        /total\s*amount\s*[:\s]*0*([1-9]\d*(?:\.\d{2})?)/i,
+        /grand\s*total\s*[:\s]*0*([1-9]\d*(?:\.\d{2})?)/i,
+        /net\s*amount\s*[:\s]*0*([1-9]\d*(?:\.\d{2})?)/i,
+        /final\s*amount\s*[:\s]*0*([1-9]\d*(?:\.\d{2})?)/i,
+        /amount\s*[:\s]*0*([1-9]\d*(?:\.\d{2})?)\s*$/i,
+        /([1-9]\d*(?:\.\d{2})?)\s*bill\s*amount/i,
+        /([1-9]\d*(?:\.\d{2})?)\s*total\s*amount/i,
+        // Additional patterns for fuel receipts and Indian formats
+        /total\s*[:\s]*0*([1-9]\d{3,}(?:\.\d{2})?)/i,
+        /amount\s*[:\s]*0*([1-9]\d{3,}(?:\.\d{2})?)/i,
       ];
   
       // Check both original and normalized lines
@@ -207,7 +212,8 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
               "Amount:",
               amount
             );
-            if (numAmount > 0 && numAmount < 1000000 && amount.length >= 3) {
+            // Adjusted validation - allow larger amounts and better filtering
+            if (numAmount > 0 && numAmount < 1000000 && numAmount >= 10) {
               extractedAmount = amount;
               confidence = 95;
               matchDetails = `High confidence: "${match[0]}" in line "${line}"`;
@@ -227,18 +233,20 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         for (const line of bottomLines) {
           console.log("Checking bottom line:", line);
   
+          // Skip sub-total lines
           if (line.match(/sub\s*total/i)) {
             console.log("Skipping Sub Total line");
             continue;
           }
   
-          const totalMatch = line.match(/total\s*:\s*(\d+(?:\.\d{2})?)/i);
+          // Enhanced total line matching with padded zeros
+          const totalMatch = line.match(/total\s*[:]\s*0*([1-9]\d*(?:\.\d{2})?)/i);
           if (totalMatch) {
             const amount = totalMatch[1];
             const numAmount = parseFloat(amount);
             console.log("Found Total line match:", line, "Amount:", amount);
   
-            if (numAmount > 0 && numAmount < 100000) {
+            if (numAmount >= 10 && numAmount < 1000000) {
               extractedAmount = amount;
               confidence = 90;
               matchDetails = `High confidence: "Total" line found: "${line}"`;
@@ -247,9 +255,10 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
             }
           }
   
+          // Skip lines with non-monetary indicators
           if (
             line.match(
-              /\b(?:tel|phone|fax|email|@|www|\.com|pin|code|no\.|id|ip|reg|license)\b/i
+              /\b(?:tel|phone|fax|email|@|www|\.com|pin|code|no\.|id|ip|reg|license|receipt|local|fip|nozzle|product|density|rate|volume|vehicle|mobile|date|time|cst|lst|vat|thank)\b/i
             )
           ) {
             console.log("Skipping line with non-monetary indicators");
@@ -258,16 +267,23 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         }
       }
   
-      // Strategy 2b: Bottom section analysis
+      // Strategy 2b: Enhanced bottom section analysis with better patterns
       if (confidence < 90) {
-        const amountPatterns = [/([\d,]+\.\d{2})/g, /([\d,]{3,})/g];
+        const amountPatterns = [
+          // Pattern for padded amounts like 02000.00
+          /0*([1-9]\d{3,}\.?\d{0,2})/g,
+          // Standard patterns
+          /([\d,]+\.\d{2})/g, 
+          /([\d,]{3,})/g
+        ];
         const candidates = [];
         const bottomLines = lines.slice(-15);
   
         for (const line of bottomLines) {
+          // Enhanced skip conditions
           if (
             line.match(
-              /\b(?:tel|phone|fax|email|@|www|\.com|pin|code|no\.|id|ip|reg|license|sub\s*total)\b/i
+              /\b(?:tel|phone|fax|email|@|www|\.com|pin|code|no\.|id|ip|reg|license|sub\s*total|receipt|local|fip|nozzle|product|density|rate(?!\s*:)|volume(?!\s*:)|vehicle|mobile|date|time|cst|lst|vat|thank)\b/i
             )
           ) {
             continue;
@@ -281,12 +297,17 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
   
               console.log("Found potential amount:", amountStr, "=", amount);
   
-              if (amount >= 100 && amount <= 100000) {
+              // Better amount validation
+              if (amount >= 50 && amount <= 500000) {
                 let score = 30;
+                
+                // Scoring improvements
                 if (amountStr.includes(".")) score += 25;
-                if (line.trim().endsWith(amountStr)) score += 20;
-                if (amount > 500) score += 15;
-                if (amount > 1000) score += 10;
+                if (line.trim().endsWith(amountStr) || line.trim().endsWith(amountStr + "0")) score += 20;
+                if (amount >= 100) score += 10;
+                if (amount >= 500) score += 15;
+                if (amount >= 1000) score += 20;
+                if (amount >= 5000) score += 10;
   
                 const context = line.toLowerCase();
                 if (context.includes("total") && !context.includes("sub")) {
@@ -294,6 +315,11 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
                 }
                 if (context.includes("amount") || context.includes("bill")) {
                   score += 30;
+                }
+                
+                // Boost score for fuel receipts with total pattern
+                if (context.match(/total\s*[:]/)) {
+                  score += 40;
                 }
   
                 candidates.push({
@@ -326,10 +352,14 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         }
       }
   
-      // Strategy 3: Manual pattern search
+      // Strategy 3: Enhanced manual pattern search
       if (confidence < 80) {
         console.log("=== Strategy 3: Manual pattern search ===");
         const manualPatterns = [
+          // Padded zero patterns
+          /0+([1-9]\d{3,}\.\d{2})/g,
+          /0+([1-9]\d{3,})/g,
+          // Standard patterns
           /(\d+,\d{3}\.\d{2})/g,
           /(\d{4,5}\.\d{2})/g,
           /(\d+\.\d{2})\s*$/gm,
@@ -345,12 +375,13 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
   
             console.log(`Manual pattern ${i} found:`, amountStr, "=", amount);
   
-            if (amount >= 100 && amount <= 100000) {
+            if (amount >= 50 && amount <= 500000) {
               let score = 20;
               if (amountStr.includes(".")) score += 30;
               if (amountStr.includes(",")) score += 20;
-              if (amount > 1000) score += 15;
-              if (amount > 10000) score += 10;
+              if (amount >= 1000) score += 25;
+              if (amount >= 5000) score += 15;
+              if (amount >= 10000) score += 10;
   
               if (score > confidence) {
                 extractedAmount = amountStr.replace(/,/g, "");
@@ -363,15 +394,16 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
         }
       }
   
-      // Strategy 4: Largest reasonable amount
+      // Strategy 4: Largest reasonable amount (improved)
       if (!extractedAmount) {
+        console.log("=== Strategy 4: Largest reasonable amount ===");
         const allAmounts = [];
         const amountPattern = /([\d,]+(?:\.\d{2})?)/g;
         let match;
   
         while ((match = amountPattern.exec(extractedText)) !== null) {
           const amount = parseFloat(match[1].replace(/,/g, ""));
-          if (amount >= 10 && amount <= 50000) {
+          if (amount >= 50 && amount <= 100000) {
             allAmounts.push(amount);
           }
         }
@@ -380,6 +412,7 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
           allAmounts.sort((a, b) => b - a);
           extractedAmount = allAmounts[0].toString();
           confidence = 25;
+          matchDetails = `Last resort: largest amount "${extractedAmount}"`;
           console.log("Last resort match:", extractedAmount);
         }
       }
@@ -387,11 +420,27 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
       if (extractedAmount) {
         setAmount(extractedAmount);
   
-        // Improved category detection
+        // Enhanced category detection for fuel stations
         if (!category) {
           const textLower = extractedText.toLowerCase();
   
           if (
+            textLower.includes("indianoil") ||
+            textLower.includes("indian oil") ||
+            textLower.includes("fuel") ||
+            textLower.includes("petrol") ||
+            textLower.includes("diesel") ||
+            textLower.includes("gas") ||
+            textLower.includes("bharat petroleum") ||
+            textLower.includes("hindustan petroleum") ||
+            textLower.includes("hp petro") ||
+            textLower.includes("iocl") ||
+            textLower.includes("bpcl") ||
+            textLower.includes("hpcl")
+          ) {
+            setCategory("Transport");
+            setCategoryIcon("⛽");
+          } else if (
             textLower.includes("hospital") ||
             textLower.includes("medical") ||
             textLower.includes("pharmacy") ||
@@ -415,13 +464,6 @@ export const AddExpenseForm = ({ onAddExpense }: AddExpenseFormProps) => {
           ) {
             setCategory("Food");
             setCategoryIcon("🍕");
-          } else if (
-            textLower.includes("fuel") ||
-            textLower.includes("petrol") ||
-            textLower.includes("gas")
-          ) {
-            setCategory("Transport");
-            setCategoryIcon("🚗");
           } else if (
             textLower.includes("grocery") ||
             textLower.includes("supermarket") ||
