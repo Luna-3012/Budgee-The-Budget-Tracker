@@ -3,6 +3,7 @@ uvicorn[standard]
 requests==2.31.0
 python-multipart>=0.0.18
 python-dotenv==1.0.0
+pinecone
 pinecone-client==2.2.1
 spacy>=3.7.0
 dateparser>=1.1.0
