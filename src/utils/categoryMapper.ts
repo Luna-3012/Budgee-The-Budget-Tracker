@@ -1,146 +1,190 @@
-// Smart category mapping utility
+import * as tf from 'tensorflow';
+
 export interface CategoryMapping {
   keywords: string[];
   category: string;
   icon: string;
 }
 
-// Predefined category mappings for common items
-export const categoryMappings: CategoryMapping[] = [
-  // Food & Dining
-  {
-    keywords: ['coffee', 'cafe', 'restaurant', 'food', 'meal', 'lunch', 'dinner', 'breakfast', 'snack', 'pizza', 'burger', 'sandwich', 'ice cream', 'dessert', 'bakery', 'pastry', 'tea', 'juice', 'soda', 'drink', 'beverage', 'alcohol', 'beer', 'wine', 'cocktail', 'bar', 'pub', 'takeout', 'delivery', 'fast food', 'dining', 'cuisine', 'chef', 'kitchen', 'catering'],
-    category: 'Food',
-    icon: '🍕'
-  },
-  
-  // Transportation
-  {
-    keywords: ['fuel', 'petrol', 'gas', 'diesel', 'uber', 'lyft', 'taxi', 'cab', 'bus', 'train', 'metro', 'subway', 'parking', 'toll', 'maintenance', 'repair', 'car', 'vehicle', 'transport', 'commute', 'travel', 'flight', 'airline', 'airport', 'rental', 'bike', 'scooter', 'motorcycle', 'auto', 'automotive', 'garage', 'service'],
-    category: 'Transport',
-    icon: '🚗'
-  },
-  
-  // Shopping
-  {
-    keywords: ['shopping', 'mall', 'store', 'retail', 'clothing', 'fashion', 'shoes', 'accessories', 'jewelry', 'cosmetics', 'makeup', 'perfume', 'electronics', 'gadget', 'phone', 'laptop', 'computer', 'appliance', 'furniture', 'home', 'decor', 'gift', 'present', 'book', 'magazine', 'toy', 'game', 'sport', 'equipment', 'gear', 'outfit', 'dress', 'shirt', 'pants', 'jeans', 'bag', 'purse', 'wallet'],
-    category: 'Shopping',
-    icon: '🛍️'
-  },
-  
-  // Entertainment
-  {
-    keywords: ['movie', 'cinema', 'theater', 'concert', 'show', 'performance', 'entertainment', 'game', 'gaming', 'arcade', 'amusement', 'park', 'zoo', 'museum', 'exhibition', 'festival', 'party', 'event', 'ticket', 'booking', 'reservation', 'streaming', 'netflix', 'spotify', 'music', 'album', 'song', 'podcast', 'subscription', 'membership', 'club', 'karaoke', 'bowling', 'pool', 'billiards', 'casino', 'gambling', 'lottery'],
-    category: 'Entertainment',
-    icon: '🎬'
-  },
-  
-  // Bills & Utilities
-  {
-    keywords: ['bill', 'electricity', 'water', 'gas', 'internet', 'wifi', 'phone', 'mobile', 'landline', 'cable', 'tv', 'television', 'streaming', 'subscription', 'utility', 'rent', 'mortgage', 'insurance', 'premium', 'service', 'maintenance', 'repair', 'cleaning', 'laundry', 'dry cleaning', 'garbage', 'trash', 'sewage', 'heating', 'cooling', 'ac', 'air conditioning'],
-    category: 'Bills',
-    icon: '📄'
-  },
-  
-  // Health & Medical
-  {
-    keywords: ['hospital', 'medical', 'doctor', 'physician', 'dentist', 'pharmacy', 'medicine', 'drug', 'pill', 'prescription', 'health', 'fitness', 'gym', 'workout', 'exercise', 'yoga', 'pilates', 'massage', 'therapy', 'treatment', 'surgery', 'consultation', 'checkup', 'vaccine', 'vitamin', 'supplement', 'protein', 'nutrition', 'diet', 'wellness', 'spa', 'salon', 'beauty', 'cosmetic', 'dental', 'optical', 'glasses', 'contact', 'lens'],
-    category: 'Health',
-    icon: '⚕️'
-  },
-  
-  // Education
-  {
-    keywords: ['school', 'college', 'university', 'education', 'course', 'class', 'training', 'workshop', 'seminar', 'lecture', 'tutorial', 'lesson', 'study', 'book', 'textbook', 'material', 'supply', 'stationery', 'pen', 'pencil', 'paper', 'notebook', 'laptop', 'computer', 'software', 'app', 'application', 'tuition', 'fee', 'scholarship', 'loan', 'student', 'academic', 'research', 'library', 'museum', 'exhibition'],
-    category: 'Education',
-    icon: '📚'
-  }
-];
-
-// Function to find the best matching category for a given input
-export function findBestCategoryMatch(input: string): { category: string; icon: string; isCustom: boolean } {
-  const normalizedInput = input.toLowerCase().trim();
-  
-  // Check for exact matches first
-  for (const mapping of categoryMappings) {
-    if (mapping.keywords.some(keyword => normalizedInput === keyword)) {
-      return {
-        category: mapping.category,
-        icon: mapping.icon,
-        isCustom: false
-      };
-    }
-  }
-  
-  // Check for partial matches
-  for (const mapping of categoryMappings) {
-    if (mapping.keywords.some(keyword => normalizedInput.includes(keyword) || keyword.includes(normalizedInput))) {
-      return {
-        category: mapping.category,
-        icon: mapping.icon,
-        isCustom: false
-      };
-    }
-  }
-  
-  // Check for word matches (split by spaces)
-  const inputWords = normalizedInput.split(/\s+/);
-  for (const mapping of categoryMappings) {
-    for (const word of inputWords) {
-      if (mapping.keywords.some(keyword => keyword.includes(word) || word.includes(keyword))) {
-        return {
-          category: mapping.category,
-          icon: mapping.icon,
-          isCustom: false
-        };
-      }
-    }
-  }
-  
-  // If no match found, return as custom category
-  return {
-    category: input,
-    icon: '💰',
-    isCustom: true
-  };
+export interface CategoryPrediction {
+  category: string;
+  icon: string;
+  confidence: number;
+  isCustom: boolean;
 }
 
-// Function to get suggestions based on partial input
-export function getCategorySuggestions(input: string): Array<{ category: string; icon: string; confidence: number }> {
-  const normalizedInput = input.toLowerCase().trim();
-  const suggestions: Array<{ category: string; icon: string; confidence: number }> = [];
-  
-  for (const mapping of categoryMappings) {
-    let confidence = 0;
+// Category icons mapping
+const categoryIcons: Record<string, string> = {
+  'Food': '🍕',
+  'Transport': '🚗',
+  'Shopping': '🛍️',
+  'Entertainment': '🎬',
+  'Bills': '📄',
+  'Health': '⚕️',
+  'Education': '📚',
+  'Other': '💰'
+};
+
+interface CategoryClassifier {
+  predict(input: string): Promise<{
+    category: string;
+    confidence: number;
+    probabilities: Array<{ category: string; probability: number }>;
+  }>;
+  isLoaded(): boolean;
+  load(): Promise<void>;
+}
+
+class CategoryClassifierService implements CategoryClassifier {
+  private model: any = null;
+  private isModelLoaded = false;
+
+  async load(): Promise<void> {
+    if (this.isModelLoaded) return;
     
-    // Exact match gets highest confidence
-    if (mapping.keywords.some(keyword => normalizedInput === keyword)) {
-      confidence = 1.0;
-    }
-    // Partial match gets medium confidence
-    else if (mapping.keywords.some(keyword => normalizedInput.includes(keyword) || keyword.includes(normalizedInput))) {
-      confidence = 0.8;
-    }
-    // Word match gets lower confidence
-    else {
-      const inputWords = normalizedInput.split(/\s+/);
-      for (const word of inputWords) {
-        if (mapping.keywords.some(keyword => keyword.includes(word) || word.includes(keyword))) {
-          confidence = 0.6;
-          break;
-        }
-      }
-    }
-    
-    if (confidence > 0) {
-      suggestions.push({
-        category: mapping.category,
-        icon: mapping.icon,
-        confidence
-      });
+    try {
+      this.model = await tf.loadLayersModel('/models/category_classifier.json');
+      await new Promise(resolve => setTimeout(resolve, 100));
+      this.isModelLoaded = true;
+      console.log('Category classifier model loaded successfully');
+    } catch (error) {
+      console.error('Failed to load category classifier model:', error);
+      throw error;
     }
   }
-  
-  // Sort by confidence (highest first)
-  return suggestions.sort((a, b) => b.confidence - a.confidence);
+
+  isLoaded(): boolean {
+    return this.isModelLoaded;
+  }
+
+  async predict(input: string): Promise<{
+    category: string;
+    confidence: number;
+    probabilities: Array<{ category: string; probability: number }>;
+  }> {
+    if (!this.isModelLoaded) {
+      await this.load();
+    }
+
+    const processedInput = this.preprocessInput(input);
+
+    try {
+      // Convert text to numerical format (you need to implement this based on your model)
+      const encodedInput = this.encodeInput(processedInput);
+      const inputTensor = tf.tensor2d([encodedInput]);
+      
+      const prediction = this.model.predict(inputTensor) as tf.Tensor;
+      const probabilities = await prediction.data();
+
+      // Clean up tensors
+      inputTensor.dispose();
+      prediction.dispose();
+
+      // Map probabilities to categories
+      const categories = Object.keys(categoryIcons);
+      const results = categories.map((category, index) => ({
+        category,
+        probability: probabilities[index] || 0
+      }));
+    
+      const bestMatch = results.reduce((best, current) => 
+        current.probability > best.probability ? current : best
+      );
+    
+      return {
+        category: bestMatch.category,
+        confidence: bestMatch.probability,
+        probabilities: results.sort((a, b) => b.probability - a.probability)
+      };
+    } catch (error) {
+      console.error('Prediction failed:', error);
+      return {
+        category: 'Other',
+        confidence: 0.1,
+        probabilities: [{ category: 'Other', probability: 0.1 }]
+      };
+    }
+  }
+
+  private preprocessInput(input: string): string {
+    return input.toLowerCase().trim().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
+  }
+}
+
+// Global classifier instance
+const category_classifier = new CategoryClassifierService();
+
+export async function initializeCategoryClassifier(): Promise<void> {
+  try {
+    await category_classifier.load();
+  } catch (error) {
+    console.error('Failed to initialize category classifier:', error);
+  }
+}
+
+export async function findBestCategoryMatch(input: string): Promise<{
+  category: string;
+  icon: string;
+  isCustom: boolean;
+  confidence?: number;
+}> {
+  try {
+    const prediction = await category_classifier.predict(input);
+    
+    const icon = categoryIcons[prediction.category] || categoryIcons['Other'];
+    const isCustom = !Object.keys(categoryIcons).includes(prediction.category);
+    
+    return {
+      category: prediction.category,
+      icon,
+      isCustom,
+      confidence: prediction.confidence
+    };
+  } catch (error) {
+    console.error('Category prediction failed:', error);
+    
+    // Fallback to custom category
+    return {
+      category: input,
+      icon: categoryIcons['Other'],
+      isCustom: true,
+      confidence: 0.1
+    };
+  }
+}
+
+// Function to get category suggestions with confidence scores
+export async function getCategorySuggestions(input: string): Promise<Array<{
+  category: string;
+  icon: string;
+  confidence: number;
+}>> {
+  try {
+    const prediction = await category_classifier.predict(input);
+    
+    return prediction.probabilities
+      .filter(p => p.probability > 0.1) // Filter low confidence predictions
+      .slice(0, 5) // Top 5 suggestions
+      .map(p => ({
+        category: p.category,
+        icon: categoryIcons[p.category] || categoryIcons['Other'],
+        confidence: p.probability
+      }));
+  } catch (error) {
+    console.error('Failed to get category suggestions:', error);
+    return [];
+  }
+}
+
+// Utility function to check if classifier is ready
+export function isClassifierReady(): boolean {
+  return category_classifier.isLoaded();
+}
+
+// Function to get all available categories with their icons
+export function getAvailableCategories(): Array<{ category: string; icon: string }> {
+  return Object.entries(categoryIcons).map(([category, icon]) => ({
+    category,
+    icon
+  }));
 }
